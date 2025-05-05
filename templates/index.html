@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Optimización de Rutas con Hill Climbing</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(120deg, #0d1b2a, #1b263b);
+            color: #e2e8f0;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            padding: 20px;
+        }
+        button {
+            background: #ff7f50;
+            color: white;
+            padding: 12px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: 0.3s ease-in-out;
+            box-shadow: 0px 4px 8px rgba(255, 127, 80, 0.5);
+        }
+        button:hover {
+            background: #ff6347;
+            transform: scale(1.05);
+            box-shadow: 0px 6px 12px rgba(255, 99, 71, 0.5);
+        }
+        #map {
+            width: 100%;
+            height: 500px;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
+        }
+        .info-box {
+            background: rgba(20, 20, 20, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            color: #ffdd57;
+            font-size: 14px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Optimización de Rutas con Hill Climbing</h1>
+        <button id="btn-generate">Generar Ruta Óptima</button>
+        <div class="info-box" id="info-box"></div>
+        <div id="map"></div>
+    </div>
+
+    <script>
+        let map = L.map('map').setView([19.432713, -99.133183], 5);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        async function fetchRoute() {
+            const response = await fetch('/random_route');
+            const data = await response.json();
+            
+            document.getElementById("info-box").style.display = "block";
+            document.getElementById("info-box").innerHTML = 
+                `<strong>Ruta:</strong> ${data.ruta.join(" → ")}<br><strong>Distancia Total:</strong> ${data.distancia.toFixed(2)} km`;
+
+            renderMap(data.ruta);
+        }
+
+        document.getElementById("btn-generate").addEventListener("click", fetchRoute);
+
+        function renderMap(ruta) {
+            map.eachLayer(layer => {
+                if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+                    map.removeLayer(layer);
+                }
+            });
+
+            let coordinates = {
+                'Jiloyork': [19.916012, -99.580580], 'Toluca': [19.289165, -99.655697],
+                'Atlacomulco': [19.799520, -99.873844], 'Guadalajara': [20.677754, -103.346253],
+                'Monterrey': [25.691611, -100.321838], 'QuintanaRoo': [21.163111, -86.802315],
+                'Michoacan': [19.701400, -101.208296], 'Aguascalientes': [21.876410, -102.264386],
+                'CDMX': [19.432713, -99.133183], 'QRO': [20.597194, -100.386670]
+            };
+
+            let latlngs = [];
+            ruta.forEach(ciudad => {
+                if (coordinates[ciudad]) {
+                    let marker = L.marker(coordinates[ciudad]).addTo(map)
+                        .bindPopup(`<strong>${ciudad}</strong>`).openPopup();
+                    
+                    latlngs.push(coordinates[ciudad]);
+                }
+            });
+
+            let polyline = L.polyline(latlngs, { color: 'red', weight: 4 }).addTo(map);
+
+            for (let i = 0; i < latlngs.length - 1; i++) {
+                let distance = calculateDistance(latlngs[i][0], latlngs[i][1], latlngs[i+1][0], latlngs[i+1][1]);
+                L.marker([(latlngs[i][0] + latlngs[i+1][0]) / 2, (latlngs[i][1] + latlngs[i+1][1]) / 2], {
+                    icon: L.divIcon({
+                        className: 'distance-label',
+                        html: `<strong>${distance.toFixed(1)} km</strong>`,
+                        iconSize: [50, 20]
+                    })
+                }).addTo(map);
+            }
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = toRadians(lat2 - lat1);
+            const dLon = toRadians(lon2 - lon1);
+            const a = Math.sin(dLat / 2) ** 2 +
+                      Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) *
+                      Math.sin(dLon / 2) ** 2;
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+        }
+
+        function toRadians(degrees) {
+            return degrees * (Math.PI / 180);
+        }
+    </script>
+</body>
+</html>
